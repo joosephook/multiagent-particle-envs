@@ -5,13 +5,11 @@ from multiagent.scenario import BaseScenario
 
 class Scenario(BaseScenario):
 
-    def make_world(self):
+    def make_world(self, num_agents = 3, num_adversaries = 1):
         world = World()
         # set any world properties first
         world.dim_c = 2
-        num_agents = 3
         world.num_agents = num_agents
-        num_adversaries = 1
         num_landmarks = num_agents - 1
         # add agents
         world.agents = [Agent() for i in range(num_agents)]
