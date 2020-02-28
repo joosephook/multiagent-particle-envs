@@ -3,7 +3,7 @@ from multiagent.core import World, Agent, Landmark
 from multiagent.scenario import BaseScenario
 
 class Scenario(BaseScenario):
-    def make_world(self, num_agents = 2, num_adversaries = 1, num_landmarks = 2):
+    def make_world(self, num_agents = 2, num_adversaries = 1, num_landmarks = 2, **kwargs):
         world = World()
         # set any world properties first
         world.dim_c = 2
