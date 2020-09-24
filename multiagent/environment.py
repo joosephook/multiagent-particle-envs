@@ -13,7 +13,7 @@ class MultiAgentEnv(gym.Env):
 
     def __init__(self, world, reset_callback=None, reward_callback=None,
                  observation_callback=None, info_callback=None,
-                 done_callback=None, shared_viewer=True, **kwargs):
+                 done_callback=None, shared_viewer=True, discrete_action_space=True, discrete_action_input=True, **kwargs):
 
         self.world = world
         self.agents = self.world.policy_agents
@@ -26,9 +26,9 @@ class MultiAgentEnv(gym.Env):
         self.info_callback = info_callback
         self.done_callback = done_callback
         # environment parameters
-        self.discrete_action_space = True
+        self.discrete_action_space = discrete_action_space
         # if true, action is a number 0...N, otherwise action is a one-hot N-dimensional vector
-        self.discrete_action_input = True
+        self.discrete_action_input = discrete_action_input
         # if true, even the action is continuous, action will be performed discretely
         self.force_discrete_action = world.discrete_action if hasattr(world, 'discrete_action') else False
         # if true, every agent has the same reward
