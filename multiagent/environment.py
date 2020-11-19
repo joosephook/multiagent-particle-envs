@@ -96,7 +96,7 @@ class MultiAgentEnv(MultiAgentBase):
 
     def __init__(self, world, reset_callback=None, reward_callback=None,
                  observation_callback=None, info_callback=None,
-                 done_callback=None, shared_viewer=True, discrete_action_space=True, discrete_action_input=True, **kwargs):
+                 done_callback=None, shared_viewer=True, discrete_action_space=True, discrete_action_input=True, time_limit=25, **kwargs):
 
         self.world = world
         self.agents = self.world.policy_agents
@@ -116,7 +116,8 @@ class MultiAgentEnv(MultiAgentBase):
         self.force_discrete_action = world.discrete_action if hasattr(world, 'discrete_action') else False
         # if true, every agent has the same reward
         self.shared_reward = world.collaborative if hasattr(world, 'collaborative') else False
-        self.time = 0
+        self.time = 0.0
+        self.time_limit = time_limit
 
         # configure spaces
         self.action_space = []
@@ -189,8 +190,14 @@ class MultiAgentEnv(MultiAgentBase):
             reward_n = [reward] * self.n
 
         self.obs_n = obs_n
+        self.time += 1
 
-        return reward_n, done_n, info_n
+        if self.time == self.time_limit:
+            done = 1.0
+        else:
+            done = 0.0
+
+        return reward, done, info_n
 
     def reset(self):
         # reset world
@@ -200,8 +207,10 @@ class MultiAgentEnv(MultiAgentBase):
         # record observations for each agent
         obs_n = []
         self.agents = self.world.policy_agents
+        self.time = 0.0
         for agent in self.agents:
             obs_n.append(self._get_obs(agent))
+
         return obs_n
 
     # get info used for benchmarking
@@ -372,23 +381,32 @@ class MultiAgentEnv(MultiAgentBase):
         return dx
 
     def get_obs(self):
-        return self.obs_n
+        return [self._get_obs(a) for a in self.agents]
 
     def get_obs_agent(self, agent_id):
-        return self.obs_n[agent_id]
+        return self._get_obs(agent_id)
 
     def get_obs_size(self):
         return self.observation_structures[False][-1]
 
     def get_state(self):
-        raise NotImplementedError
-        pass
+        state = []
+        for agent in self.world.agents:
+            state.append(agent.state.p_pos)
+            state.append(agent.state.p_vel)
+        for landmark in self.world.landmarks:
+            state.append(agent.state.p_pos)
+
+        state = np.concatenate(state, axis=0)
+
+        assert len(state.shape) == 1
+        return state
 
     def get_state_size(self):
-        return 0
+        return self.get_state().shape[0]
 
     def get_avail_actions(self):
-        return [np.arange(5) for _ in self.n]
+        return [np.arange(5) for _ in self.agents]
 
     def get_avail_agent_actions(self, agent_id):
         return np.arange(5)
