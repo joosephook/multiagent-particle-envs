@@ -1,12 +1,95 @@
 import gym
 from gym import spaces
 from gym.envs.registration import EnvSpec
+from multiagent.core import Landmark
 import numpy as np
 from multiagent.multi_discrete import MultiDiscrete
 
+import abc
+
+class MultiAgentBase(abc.ABC):
+    @abc.abstractmethod
+    def step(self, actions):
+        """Returns reward, terminated, info."""
+        pass
+
+    @abc.abstractmethod
+    def get_obs(self):
+        """Returns all agent observations in a list."""
+        pass
+
+    @abc.abstractmethod
+    def get_obs_agent(self, agent_id):
+        """Returns observation for agent_id."""
+        pass
+
+    @abc.abstractmethod
+    def get_obs_size(self):
+        """Returns the size of the observation."""
+        pass
+
+    @abc.abstractmethod
+    def get_state(self):
+        """Returns the global state."""
+        pass
+
+    @abc.abstractmethod
+    def get_state_size(self):
+        """Returns the size of the global state."""
+        pass
+
+    @abc.abstractmethod
+    def get_avail_actions(self):
+        """Returns the available actions of all agents in a list."""
+        pass
+
+    @abc.abstractmethod
+    def get_avail_agent_actions(self, agent_id):
+        """Returns the available actions for agent_id."""
+        pass
+
+    @abc.abstractmethod
+    def get_total_actions(self):
+        """Returns the total number of actions an agent could ever take."""
+        pass
+
+    @abc.abstractmethod
+    def reset(self):
+        """Returns initial observations and states."""
+        pass
+
+    @abc.abstractmethod
+    def render(self):
+        pass
+
+    @abc.abstractmethod
+    def close(self):
+        pass
+
+    @abc.abstractmethod
+    def seed(self):
+        pass
+
+    @abc.abstractmethod
+    def save_replay(self):
+        """Save a replay."""
+        pass
+
+    def get_env_info(self):
+        env_info = {"state_shape": self.get_state_size(),
+                    "obs_shape": self.get_obs_size(),
+                    "n_actions": self.get_total_actions(),
+                    "n_agents": self.n_agents,
+                    "episode_limit": self.episode_limit}
+        return env_info
+
+
+
+
+
 # environment for all agents in the multiagent world
 # currently code assumes that no agents will be created/destroyed at runtime!
-class MultiAgentEnv(gym.Env):
+class MultiAgentEnv(MultiAgentBase):
     metadata = {
         'render.modes' : ['human', 'rgb_array']
     }
@@ -77,6 +160,10 @@ class MultiAgentEnv(gym.Env):
             self.viewers = [None] * self.n
         self._reset_render()
 
+        self.obs_n = [None] * self.n
+        self.observation_structures = None
+        self.n_agents = self.n
+
     def step(self, action_n):
         obs_n = []
         reward_n = []
@@ -101,7 +188,9 @@ class MultiAgentEnv(gym.Env):
         if self.shared_reward:
             reward_n = [reward] * self.n
 
-        return obs_n, reward_n, done_n, info_n
+        self.obs_n = obs_n
+
+        return reward_n, done_n, info_n
 
     def reset(self):
         # reset world
@@ -281,6 +370,43 @@ class MultiAgentEnv(gym.Env):
                 for y in np.linspace(-range_max, +range_max, 5):
                     dx.append(np.array([x,y]))
         return dx
+
+    def get_obs(self):
+        return self.obs_n
+
+    def get_obs_agent(self, agent_id):
+        return self.obs_n[agent_id]
+
+    def get_obs_size(self):
+        return self.observation_structures[False][-1]
+
+    def get_state(self):
+        raise NotImplementedError
+        pass
+
+    def get_state_size(self):
+        return 0
+
+    def get_avail_actions(self):
+        return [np.arange(5) for _ in self.n]
+
+    def get_avail_agent_actions(self, agent_id):
+        return np.arange(5)
+
+    def get_total_actions(self):
+        if self.discrete_action_space:
+            return 5
+        else:
+            raise ValueError('continuous action space not supported')
+
+    def close(self):
+        pass
+
+    def seed(self):
+        pass
+
+    def save_replay(self):
+        pass
 
 
 # vectorized wrapper for a batch of multi-agent environments
