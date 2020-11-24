@@ -118,6 +118,7 @@ class MultiAgentEnv(MultiAgentBase):
         self.shared_reward = world.collaborative if hasattr(world, 'collaborative') else False
         self.time = 0.0
         self.time_limit = time_limit
+        self.num_episodes = 0
 
         # configure spaces
         self.action_space = []
@@ -162,8 +163,9 @@ class MultiAgentEnv(MultiAgentBase):
         self._reset_render()
 
         self.obs_n = [None] * self.n
-        self.observation_structures = None
         self.n_agents = self.n
+        self.translate_observation = None
+        self.translate_state = None
 
     def step(self, action_n):
         obs_n = []
@@ -199,7 +201,7 @@ class MultiAgentEnv(MultiAgentBase):
 
         return reward, done, info_n
 
-    def reset(self):
+    def reset(self, evaluate=False):
         # reset world
         self.reset_callback(self.world)
         # reset renderer
@@ -208,10 +210,11 @@ class MultiAgentEnv(MultiAgentBase):
         obs_n = []
         self.agents = self.world.policy_agents
         self.time = 0.0
-        for agent in self.agents:
-            obs_n.append(self._get_obs(agent))
 
-        return obs_n
+        if not evaluate:
+            self.num_episodes += 1
+
+        return self.get_obs()
 
     # get info used for benchmarking
     def _get_info(self, agent):
@@ -380,27 +383,74 @@ class MultiAgentEnv(MultiAgentBase):
                     dx.append(np.array([x,y]))
         return dx
 
-    def get_obs(self):
-        return [self._get_obs(a) for a in self.agents]
+    def get_obs(self, translate=None):
+        return [self.get_obs_agent(agent_id) for agent_id, agent in enumerate(self.agents)]
 
-    def get_obs_agent(self, agent_id):
-        return self._get_obs(agent_id)
+    def get_obs_agent(self, agent_id, structure=False):
+        agent = self.world.agents[agent_id]
+        obs = [agent.state.p_pos, agent.state.p_vel]
+        obs_structure = [0, 4] # p_pos + p_vel = 4
+
+        for i, a in enumerate(self.world.agents):
+            if i != agent_id:
+                obs.append(agent.state.p_pos - a.state.p_pos)
+
+        obs_structure.append(2*(len(self.world.agents)-1))
+
+        for landmark in self.world.landmarks:
+            obs.append(landmark.state.p_pos - agent.state.p_pos)
+
+        obs_structure.append(2*(len(self.world.landmarks)))
+
+        if structure:
+            return np.cumsum(obs_structure)
+        elif self.translate_observation is not None:
+            obs_structure = np.cumsum(obs_structure)
+            obs = np.concatenate(obs, axis=0)
+            new_obs = np.zeros(self.translate_observation[-1])
+
+            for i in range(len(self.translate_observation)-1):
+                obs_size = obs_structure[i+1]-obs_structure[i]
+                new_obs[self.translate_observation[i]:self.translate_observation[i]+obs_size] = obs[obs_structure[i]:obs_structure[i+1]]
+
+            return new_obs
+
+        else:
+            return np.concatenate(obs, axis=0)
 
     def get_obs_size(self):
-        return self.observation_structures[False][-1]
+        return self.get_obs_agent(0).shape[0]
 
-    def get_state(self):
+    def get_state(self, structure=False, translate=None):
         state = []
+        state_structure = [0]
+
         for agent in self.world.agents:
             state.append(agent.state.p_pos)
             state.append(agent.state.p_vel)
+
+        state_structure.append(len(self.world.agents)*4)
         for landmark in self.world.landmarks:
-            state.append(agent.state.p_pos)
+            state.append(landmark.state.p_pos)
+
+        state_structure.append(len(self.world.agents)*2)
 
         state = np.concatenate(state, axis=0)
-
         assert len(state.shape) == 1
-        return state
+
+        if structure:
+            return np.cumsum(state_structure)
+        elif self.translate_state is not None:
+            state_structure = np.cumsum(state_structure)
+            new_state = np.zeros(self.translate_state[-1])
+
+            for i in range(len(self.translate_state) - 1):
+                state_size = state_structure[i+1]-state_structure[i]
+                new_state[self.translate_state[i]:self.translate_state[i] + state_size] = state[ state_structure[ i]: state_structure[ i + 1]]
+
+            return new_state
+        else:
+            return state
 
     def get_state_size(self):
         return self.get_state().shape[0]
