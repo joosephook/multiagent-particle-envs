@@ -96,7 +96,7 @@ class MultiAgentEnv(MultiAgentBase):
 
     def __init__(self, world, reset_callback=None, reward_callback=None,
                  observation_callback=None, info_callback=None,
-                 done_callback=None, shared_viewer=True, discrete_action_space=True, discrete_action_input=True, time_limit=25, **kwargs):
+                 done_callback=None, shared_viewer=True, discrete_action_space=True, discrete_action_input=True, episode_limit=25, **kwargs):
 
         self.world = world
         self.agents = self.world.policy_agents
@@ -117,8 +117,7 @@ class MultiAgentEnv(MultiAgentBase):
         # if true, every agent has the same reward
         self.shared_reward = world.collaborative if hasattr(world, 'collaborative') else False
         self.time = 0.0
-        self.time_limit = time_limit
-        self.num_episodes = 0
+        self.episode_limit = episode_limit
 
         # configure spaces
         self.action_space = []
@@ -194,7 +193,7 @@ class MultiAgentEnv(MultiAgentBase):
         self.obs_n = obs_n
         self.time += 1
 
-        if self.time == self.time_limit:
+        if self.time == self.episode_limit:
             done = 1.0
         else:
             done = 0.0
