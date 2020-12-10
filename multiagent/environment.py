@@ -165,6 +165,7 @@ class MultiAgentEnv(MultiAgentBase):
         self.n_agents = self.n
         self.translate_observation = None
         self.translate_state = None
+        self.num_episodes = 0
 
     def step(self, action_n):
         obs_n = []
